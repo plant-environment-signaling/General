@@ -7,3 +7,5 @@ Here are some general guidelines:
 3. If it is for data processing in any way, please also add an Excel file or link to the original database that you use to load your data into the script. Make sure you dummy the file, as this is all open. Everybody can access this. 
 4. Please always annotate your code. This is a very important step, and makes it much easier for somebody else within our group to use the code. 
 
+Thanks for sharing your work!
+
