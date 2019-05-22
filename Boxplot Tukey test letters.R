@@ -71,7 +71,7 @@ ANOVA=aov(model)
 #my_colors=c( rgb(143,199,74,maxColorValue = 255),rgb(242,104,34,maxColorValue = 255), rgb(111,145,202,maxColorValue = 255),rgb(254,188,18,maxColorValue = 255) , rgb(74,132,54,maxColorValue = 255),rgb(236,33,39,maxColorValue = 255),rgb(165,103,40,maxColorValue = 255))
 
 # Draw the basic boxplot
-#a=boxplot(subhypo24$hyponasty24 ~ subhypo24$treatment , ylim=c(min(subhypo24$hyponasty24) , 1.1*max(subhypo24$hyponasty24)) , col=my_colors[as.numeric(LABELS[,1])] , ylab="Hyponastic response (?? petiole angle (°))" , main="")
+#a=boxplot(subhypo24$hyponasty24 ~ subhypo24$treatment , ylim=c(min(subhypo24$hyponasty24) , 1.1*max(subhypo24$hyponasty24)) , col=my_colors[as.numeric(LABELS[,1])] , ylab="Hyponastic response (?? petiole angle (Â°))" , main="")
 # I want to write the letter over each box. Over is how high I want to write it.
 #over=0.1*max( a$stats[nrow(a$stats),] )
 
@@ -112,7 +112,7 @@ final<- merge(labels,yvalue,  by= "treatment", "conditions")
 bphyponasty24<- ggboxplot(subhypo24, x = "treatment", y = "hyponasty24",bxp.errorbar = TRUE,bxp.errorbar.width = 0.2,
                           ylim = c(-10,30),
                           order = c("WL", "FR", "FRt_WL", "LBL", "FR_LBL", "FRt_LBL"),
-                          main = "Hyponastic response (24h), outliers removed", ylab = "Hyponastic response (?? petiole angle (°))", xlab = "Treatment") + geom_boxplot()+
+                          main = "Hyponastic response (24h), outliers removed", ylab = "Hyponastic response (?? petiole angle (Â°))", xlab = "Treatment") + geom_boxplot()+
   geom_text( data = final, aes(x = conditions, y= hyponasty24, label = Letters, vjust=-7,hjust=0.5)) 
 
 # Adding the extra layers and printing the graph in your plot screen
