@@ -111,9 +111,8 @@ dev.off()
 #And now the stats
 library(xlsx)
 
-#lrdensityanova = aov(lrdensity  ~ genotype, data=mainroots) #this does a one-way anova
-#summary (lrdensityanova)
-#however we have genotype and treatment variables that might interact
+
+#we have genotype and treatment variables that might interact
 #that's why we want a two-way anova
 model = aov(propstage12 ~ genotype * treatment, data=LRPdata)
 #with a linear model we look at the response (lrdensity) vs the factors treatment and genotype
@@ -149,7 +148,7 @@ addDataFrame(tframe, sheet = tsheet, startRow = 24)
 tframe = as.data.frame(pairwise.t.test(genotype1$propstage7E,genotype1$treatment)$p.value)
 addDataFrame(tframe, sheet = tsheet, startRow = 26)
 
-#saveWorkbook(twb, file = "test3.xlsx") #save the workbook as an excel file
+saveWorkbook(twb, file = "test3.xlsx") #save the workbook as an excel file
 
 
 #windows(9,6,16)
