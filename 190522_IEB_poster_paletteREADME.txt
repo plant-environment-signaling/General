@@ -1,0 +1,1 @@
+These lines of code allow you to use the same colors in your graphs as the ones that are on the IEB poster template on eLabjournal. The example code uses R's built-in iris dataset
