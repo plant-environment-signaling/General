@@ -1,0 +1,471 @@
+# Setting working environment
+{
+  # Packages to use
+  library('ggplot2') # plots
+  library('dplyr') # easy data management
+  library('ggpubr') # theme for ggplots, 'ready to be published'
+  library('RColorBrewer') # To get more colors
+  
+  
+  # Working directory and loading the table    
+  setwd("I:/RStudio/Project_docker/09_Scripts_and_datasets_for_Evp_Github")
+  Stack_bars_RGB <- read.csv('Stack_bars.csv', sep = ';', dec = ',', fileEncoding="UTF-8-BOM") # I use UTF-8-BOM encoding for accents and also to prevent any problem related to the first column
+  
+  
+  # functions to use
+  stderr <- function(x, na.rm=FALSE) {
+    if (na.rm) x <- na.omit(x)
+    sqrt(var(x)/length(x))
+  }  # To get the standard errors
+  
+  
+  # Variables  
+  barwidth = 0.35 #width of bars
+  color_fill_RGB = c('Red', 'Green', 'Blue') # fill the stacked boxes
+  labels_col = c('   Red', '   Green', '   Blue') # label for the legend
+  color_outline_conditions = c('grey0', 'grey0', 'grey0') # outline of the boxes
+  labels_RGB = c('   Before glitching', '   Method 1', '   Method 2') # The three conditions
+  TP_RGB = c(0,1,2,3,4,7) # You can choose less seconds to show less bars
+  expand_x = c(0.05,0) # To strech the plot
+  expand_y = c(0,0) # to stick the bars to the x axis
+  
+  theme_RGB = theme(axis.title.x = element_blank(), axis.title.y = element_text(colour = 'Black', face = 'bold', size = rel(1.5)), legend.position = 'none',
+                    axis.text.x = element_text(size = rel(1.3), face = 'bold'), axis.text.y = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill = "white"), panel.grid.major.y  = element_blank(),
+                    panel.grid.major.x = element_blank(), plot.margin = margin(1.2,0.1,0.1,0.1,'cm'), legend.title = element_blank(), legend.direction = 'vertical') # theme used in addition to theme_pubr() 
+}
+#------------ Stack_bars_RGB analysis -----
+
+#------------ Created datasets--------
+# First, create the columns, be carefull that to calculate the SLA, LAS_DW and LAS_LfAr should be NA instead of 0
+# Second, create the dataset used for the graphs
+{
+  # We want to select every value, because we are going to summaries everything
+  # The Identity is important because it define what value are you looking at
+  Stack_bars_RGB_raw = Stack_bars_RGB%>%
+      filter(To_use == '1')
+  
+  Stack_bars_RGB[,-c(1,2,3,4,9)][Stack_bars_RGB[, -c(1,2,3,4,9)] < 0] <- 0 # Turn negative values to zero
+  
+  Stack_bars_RGB$Total_rgb = Stack_bars_RGB$Red + Stack_bars_RGB$Green + Stack_bars_RGB$Blue
+  Stack_bars_RGB$Red_occupation = (Stack_bars_RGB$Red/Stack_bars_RGB$Total_rgb)*100
+  Stack_bars_RGB$Green_occupation = (Stack_bars_RGB$Green/Stack_bars_RGB$Total_rgb)*100
+  Stack_bars_RGB$Blue_occupation = (Stack_bars_RGB$Blue/Stack_bars_RGB$Total_rgb)*100
+  
+  Stack_bars_RGB = Stack_bars_RGB%>%
+    dplyr::select(c(1:4), c(6:8), c(10:13), Identity) # dplyr::select prevent any confusion with other 'select' functions
+  
+  
+  # Here we create the mean table, don't forget to change the identity
+  Stack_bars_RGB_mean = Stack_bars_RGB %>%
+      group_by(Moss, Time_.second., Glitch_Method, Picture, add = TRUE)%>%
+      summarise_at(vars(Red:Blue_occupation), mean, na.rm = TRUE)
+  Stack_bars_RGB_mean$Identity = factor('Mean')
+  
+  
+  # Here we create the Standrad Error (SE), don't forget to change the identity
+  Stack_bars_RGB_SE = Stack_bars_RGB %>%
+      group_by(Moss, Time_.second., Glitch_Method, Picture, add = TRUE)%>%
+      summarise_at(vars(Red:Blue_occupation), stderr, na.rm = TRUE)
+  Stack_bars_RGB_SE$Identity = factor('SE')
+  
+  
+  # We can merge all the datasets
+  # two ways : merge everything to view more easily RAW, means and SE
+  Stack_bars_RGB_MeSE = merge(Stack_bars_RGB_mean, Stack_bars_RGB_SE, all = TRUE) # First step : For only mean and SE
+  Stack_bars_RGB_Pandora = merge(Stack_bars_RGB, Stack_bars_RGB_MeSE, all = TRUE)# Then merge RAW and dataset above (Pandora = Mythology) - Do this one on second time using the MeSE merged table (make things easier)
+}
+
+
+#------------- Plots -----------------
+# Red Green Blue - Moss_1
+{
+  # Datasets setup
+  {
+    # Red
+    {
+      Red_Moss_1_Pandora = {Stack_bars_RGB_Pandora%>%
+          filter(Moss == 'Moss_1')%>%
+          dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Red, Identity)} # To get all the SLA leaf before M2mergence related to Echinochloa
+      Red_Moss_1_raw = {Red_Moss_1_Pandora%>%
+          filter(Identity == 'RAW')} # To get only the raw values, used to explain distribution
+      
+      Red_Moss_1_mean = {Red_Moss_1_Pandora%>%
+          filter(Identity == 'Mean')%>%
+          rename(mean = Red)} # To get mean values, used to show an average position of the raw value
+      Red_Moss_1_mean$Colour = factor('Red') # Important to add the sugar column to map the colour of fill in boxes for each sugar
+      
+      Red_Moss_1_SE = {Red_Moss_1_Pandora%>%
+          filter(Identity == 'SE')} # To get standard error from the setuped function, used to show how variable are the data
+      
+      Red_Moss_1_mean$SE = Red_Moss_1_SE$Red
+      Red_Moss_1_summary = Red_Moss_1_mean%>%
+        dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Colour, mean, SE)
+      
+      
+      
+      Red_Moss_1_Picture_1_summary = Red_Moss_1_summary%>%
+        filter(Picture == 'Picture_1')
+      
+      Red_Moss_1_Picture_1_summary_BG = Red_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Before_glitching')
+      
+      Red_Moss_1_Picture_1_summary_M1 = Red_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_1')
+      
+      Red_Moss_1_Picture_1_summary_M2 = Red_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_2')
+      
+      Red_Moss_1_Picture_1_summary= merge(Red_Moss_1_Picture_1_summary_BG, Red_Moss_1_Picture_1_summary_M1, all = TRUE)
+      Red_Moss_1_Picture_1_summary= merge(Red_Moss_1_Picture_1_summary, Red_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+    # Green
+    {
+      Green_Moss_1_Pandora = {Stack_bars_RGB_Pandora%>%
+          filter(Moss == 'Moss_1')%>%
+          dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Green, Identity)} # To get all the SLA leaf before M2mergence related to Echinochloa
+      Green_Moss_1_raw = {Green_Moss_1_Pandora%>%
+          filter(Identity == 'RAW')} # To get only the raw values, used to explain distribution
+      
+      Green_Moss_1_mean = {Green_Moss_1_Pandora%>%
+          filter(Identity == 'Mean')%>%
+          rename(mean = Green)} # To get mean values, used to show an average position of the raw value
+      Green_Moss_1_mean$Colour = factor('Green') # Important to add the sugar column to map the colour of fill in boxes for each sugar
+      
+      Green_Moss_1_SE = {Green_Moss_1_Pandora%>%
+          filter(Identity == 'SE')} # To get standard error from the setuped function, used to show how variable are the data
+      
+      Green_Moss_1_mean$SE = Green_Moss_1_SE$Green
+      Green_Moss_1_summary = Green_Moss_1_mean%>%
+        dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Colour, mean, SE)
+      
+      
+      
+      Green_Moss_1_Picture_1_summary = Green_Moss_1_summary%>%
+        filter(Picture == 'Picture_1')
+      
+      Green_Moss_1_Picture_1_summary_BG = Green_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Before_glitching')
+      
+      Green_Moss_1_Picture_1_summary_M1 = Green_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_1')
+      
+      Green_Moss_1_Picture_1_summary_M2 = Green_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_2')
+      
+      Green_Moss_1_Picture_1_summary= merge(Green_Moss_1_Picture_1_summary_BG, Green_Moss_1_Picture_1_summary_M1, all = TRUE)
+      Green_Moss_1_Picture_1_summary= merge(Green_Moss_1_Picture_1_summary, Green_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+    # Blue
+    {
+      Blue_Moss_1_Pandora = {Stack_bars_RGB_Pandora%>%
+          filter(Moss == 'Moss_1')%>%
+          dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Blue, Identity)} # To get all the SLA leaf before M2mergence related to Echinochloa
+      Blue_Moss_1_raw = {Blue_Moss_1_Pandora%>%
+          filter(Identity == 'RAW')} # To get only the raw values, used to explain distribution
+      
+      Blue_Moss_1_mean = {Blue_Moss_1_Pandora%>%
+          filter(Identity == 'Mean')%>%
+          rename(mean = Blue)} # To get mean values, used to show an average position of the raw value
+      Blue_Moss_1_mean$Colour = factor('Blue') # Important to add the sugar column to map the colour of fill in boxes for each sugar
+      
+      Blue_Moss_1_SE = {Blue_Moss_1_Pandora%>%
+          filter(Identity == 'SE')} # To get standard error from the setuped function, used to show how variable are the data
+      
+      Blue_Moss_1_mean$SE = Blue_Moss_1_SE$Blue
+      Blue_Moss_1_summary = Blue_Moss_1_mean%>%
+        select(Moss, Time_.second., Glitch_Method, Colour, Picture, mean, SE)
+      
+      
+      
+      Blue_Moss_1_Picture_1_summary = Blue_Moss_1_summary%>%
+        filter(Picture == 'Picture_1')
+      
+      Blue_Moss_1_Picture_1_summary_BG = Blue_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Before_glitching')	 
+      
+      Blue_Moss_1_Picture_1_summary_M1 = Blue_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_1')
+      
+      Blue_Moss_1_Picture_1_summary_M2 = Blue_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_2')
+      
+      Blue_Moss_1_Picture_1_summary= merge(Blue_Moss_1_Picture_1_summary_BG, Blue_Moss_1_Picture_1_summary_M1, all = TRUE)
+      Blue_Moss_1_Picture_1_summary= merge(Blue_Moss_1_Picture_1_summary, Blue_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+    # Merge datasets to get all sugars
+    {
+      RGB_Moss_1_Picture_1_summary_BG = merge(Red_Moss_1_Picture_1_summary_BG, Green_Moss_1_Picture_1_summary_BG, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_BG = merge(RGB_Moss_1_Picture_1_summary_BG, Blue_Moss_1_Picture_1_summary_BG, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M1 = merge(Red_Moss_1_Picture_1_summary_M1, Green_Moss_1_Picture_1_summary_M1, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M1 = merge(RGB_Moss_1_Picture_1_summary_M1, Blue_Moss_1_Picture_1_summary_M1, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M2 = merge(Red_Moss_1_Picture_1_summary_M2, Green_Moss_1_Picture_1_summary_M2, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M2 = merge(RGB_Moss_1_Picture_1_summary_M2, Blue_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+  }
+  # Cummulate means to give the right y coordonate to the error bars
+  {
+    # Blue = Blue
+    # Green = Green + Blue
+    # Red = Red + Green + Blue
+    
+    # Duplicate the datasets just to prevent any issue
+    {
+      Blue_Moss_1_Picture_1_summary_BG_Cumu_mean = Blue_Moss_1_Picture_1_summary_BG
+      Green_Moss_1_Picture_1_summary_BG_Cumu_mean = Green_Moss_1_Picture_1_summary_BG
+      Red_Moss_1_Picture_1_summary_BG_Cumu_mean = Red_Moss_1_Picture_1_summary_BG
+      
+      Blue_Moss_1_Picture_1_summary_M1_Cumu_mean = Blue_Moss_1_Picture_1_summary_M1
+      Green_Moss_1_Picture_1_summary_M1_Cumu_mean = Green_Moss_1_Picture_1_summary_M1
+      Red_Moss_1_Picture_1_summary_M1_Cumu_mean = Red_Moss_1_Picture_1_summary_M1
+      
+      Blue_Moss_1_Picture_1_summary_M2_Cumu_mean = Blue_Moss_1_Picture_1_summary_M2
+      Green_Moss_1_Picture_1_summary_M2_Cumu_mean = Green_Moss_1_Picture_1_summary_M2
+      Red_Moss_1_Picture_1_summary_M2_Cumu_mean = Red_Moss_1_Picture_1_summary_M2
+    }
+    # Cumulate the means as said
+    {
+      Green_Moss_1_Picture_1_summary_BG_Cumu_mean$mean = Green_Moss_1_Picture_1_summary_BG_Cumu_mean$mean + Blue_Moss_1_Picture_1_summary_BG_Cumu_mean$mean
+      Red_Moss_1_Picture_1_summary_BG_Cumu_mean$mean = Red_Moss_1_Picture_1_summary_BG$mean + Green_Moss_1_Picture_1_summary_BG_Cumu_mean$mean
+      
+      Green_Moss_1_Picture_1_summary_M1_Cumu_mean$mean = Green_Moss_1_Picture_1_summary_M1_Cumu_mean$mean + Blue_Moss_1_Picture_1_summary_M1_Cumu_mean$mean
+      Red_Moss_1_Picture_1_summary_M1_Cumu_mean$mean = Red_Moss_1_Picture_1_summary_M1$mean + Green_Moss_1_Picture_1_summary_M1_Cumu_mean$mean
+      
+      Green_Moss_1_Picture_1_summary_M2_Cumu_mean$mean = Green_Moss_1_Picture_1_summary_M2_Cumu_mean$mean + Blue_Moss_1_Picture_1_summary_M2_Cumu_mean$mean
+      Red_Moss_1_Picture_1_summary_M2_Cumu_mean$mean = Red_Moss_1_Picture_1_summary_M2$mean + Green_Moss_1_Picture_1_summary_M2_Cumu_mean$mean
+    }
+    # Merge the datasets
+    {
+      RGB_Moss_1_Picture_1_summary_BG_Cumu_mean = merge(Red_Moss_1_Picture_1_summary_BG_Cumu_mean, Green_Moss_1_Picture_1_summary_BG_Cumu_mean, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_BG_Cumu_mean = merge(RGB_Moss_1_Picture_1_summary_BG_Cumu_mean, Blue_Moss_1_Picture_1_summary_BG_Cumu_mean, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M1_Cumu_mean = merge(Red_Moss_1_Picture_1_summary_M1_Cumu_mean, Green_Moss_1_Picture_1_summary_M1_Cumu_mean, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M1_Cumu_mean = merge(RGB_Moss_1_Picture_1_summary_M1_Cumu_mean, Blue_Moss_1_Picture_1_summary_M1_Cumu_mean, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M2_Cumu_mean = merge(Red_Moss_1_Picture_1_summary_M2_Cumu_mean, Green_Moss_1_Picture_1_summary_M2_Cumu_mean, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M2_Cumu_mean = merge(RGB_Moss_1_Picture_1_summary_M2_Cumu_mean, Blue_Moss_1_Picture_1_summary_M2_Cumu_mean, all = TRUE)
+    }
+  }
+  # Plot - Picture_1
+  {
+    RGB_Picture_1_Moss_1_plot = ggplot()+
+      geom_bar(RGB_Moss_1_Picture_1_summary_BG, mapping = aes(x = Time_.second., y = mean, fill = Colour, color = Glitch_Method), size = rel(.8), stat = 'identity', position = 'stack', width = barwidth, alpha = 0.8)+
+      geom_bar(RGB_Moss_1_Picture_1_summary_M1, mapping = aes(x = Time_.second. - (barwidth / 2) - 0.025, y = mean, fill = Colour, color = Glitch_Method), size = rel(.8), stat = 'identity', position = 'stack', width = barwidth, alpha = 0.8)+
+      geom_bar(RGB_Moss_1_Picture_1_summary_M2, mapping = aes(x = Time_.second. + (barwidth / 2) + 0.025, y = mean, fill = Colour, color = Glitch_Method), size = rel(.8), stat = 'identity', position = 'stack', width = barwidth, alpha = 0.8)+
+      geom_errorbar(data = RGB_Moss_1_Picture_1_summary_BG_Cumu_mean, aes(x = Time_.second., ymin = mean - SE, ymax = mean + SE),  colour="black", width=.1, position = 'identity')+
+      geom_errorbar(data = RGB_Moss_1_Picture_1_summary_M1_Cumu_mean, aes(x = Time_.second. - (barwidth / 2) - 0.025, ymin = mean - SE, ymax = mean + SE),  colour="black", width=.1, position = 'identity')+
+      geom_errorbar(data = RGB_Moss_1_Picture_1_summary_M2_Cumu_mean, aes(x = Time_.second. + (barwidth / 2) + 0.025, ymin = mean - SE, ymax = mean + SE),  colour="black", width=.1, position = 'identity')+
+      scale_fill_manual(values = color_fill_RGB, labels = labels_RGB)+
+      scale_color_manual(values = color_outline_conditions, labels = labels_conditions)+
+      scale_x_continuous(name = "seconds", breaks = TP_RGB, expand = expand_x)+
+      scale_y_continuous(expand = expand_y, name = 'RGB', oob = function(x, ...) x)+
+      coord_cartesian(clip = "off")+
+      theme_pubr()+
+      theme_RGB
+    
+    
+    ggsave(filename = "RGB_Picture_1_Moss_1_plot.tiff",plot = RGB_Picture_1_Moss_1_plot,width = 7,height = 5,dpi = 600)
+  }
+}
+
+# Red Green Blue occupation - Moss_1
+{
+  # Datasets setup
+  {
+    # Red_occupation
+    {
+      Red_occupation_Moss_1_Pandora = {Stack_bars_RGB_Pandora%>%
+          filter(Moss == 'Moss_1')%>%
+          dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Red_occupation, Identity)} # To get all the SLA leaf before M2mergence related to Echinochloa
+      Red_occupation_Moss_1_raw = {Red_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'RAW')} # To get only the raw values, used to explain distribution
+      
+      Red_occupation_Moss_1_mean = {Red_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'Mean')%>%
+          rename(mean = Red_occupation)} # To get mean values, used to show an average position of the raw value
+      Red_occupation_Moss_1_mean$Colour = factor('Red_occupation') # Important to add the sugar column to map the colour of fill in boxes for each sugar
+      
+      Red_occupation_Moss_1_SE = {Red_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'SE')} # To get standard error from the setuped function, used to show how variable are the data
+      
+      Red_occupation_Moss_1_mean$SE = Red_occupation_Moss_1_SE$Red_occupation
+      Red_occupation_Moss_1_summary = Red_occupation_Moss_1_mean%>%
+        dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Colour, mean, SE)
+      
+      
+      
+      Red_occupation_Moss_1_Picture_1_summary = Red_occupation_Moss_1_summary%>%
+        filter(Picture == 'Picture_1')
+      
+      Red_occupation_Moss_1_Picture_1_summary_BG = Red_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Before_glitching')
+      
+      Red_occupation_Moss_1_Picture_1_summary_M1 = Red_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_1')
+      
+      Red_occupation_Moss_1_Picture_1_summary_M2 = Red_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_2')
+      
+      Red_occupation_Moss_1_Picture_1_summary= merge(Red_occupation_Moss_1_Picture_1_summary_BG, Red_occupation_Moss_1_Picture_1_summary_M1, all = TRUE)
+      Red_occupation_Moss_1_Picture_1_summary= merge(Red_occupation_Moss_1_Picture_1_summary, Red_occupation_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+    # Green_occupation
+    {
+      Green_occupation_Moss_1_Pandora = {Stack_bars_RGB_Pandora%>%
+          filter(Moss == 'Moss_1')%>%
+          dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Green_occupation, Identity)} # To get all the SLA leaf before M2mergence related to Echinochloa
+      Green_occupation_Moss_1_raw = {Green_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'RAW')} # To get only the raw values, used to explain distribution
+      
+      Green_occupation_Moss_1_mean = {Green_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'Mean')%>%
+          rename(mean = Green_occupation)} # To get mean values, used to show an average position of the raw value
+      Green_occupation_Moss_1_mean$Colour = factor('Green_occupation') # Important to add the sugar column to map the colour of fill in boxes for each sugar
+      
+      Green_occupation_Moss_1_SE = {Green_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'SE')} # To get standard error from the setuped function, used to show how variable are the data
+      
+      Green_occupation_Moss_1_mean$SE = Green_occupation_Moss_1_SE$Green_occupation
+      Green_occupation_Moss_1_summary = Green_occupation_Moss_1_mean%>%
+        dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Colour, mean, SE)
+      
+      
+      
+      Green_occupation_Moss_1_Picture_1_summary = Green_occupation_Moss_1_summary%>%
+        filter(Picture == 'Picture_1')
+      
+      Green_occupation_Moss_1_Picture_1_summary_BG = Green_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Before_glitching')
+      
+      Green_occupation_Moss_1_Picture_1_summary_M1 = Green_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_1')
+      
+      Green_occupation_Moss_1_Picture_1_summary_M2 = Green_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_2')
+      
+      Green_occupation_Moss_1_Picture_1_summary= merge(Green_occupation_Moss_1_Picture_1_summary_BG, Green_occupation_Moss_1_Picture_1_summary_M1, all = TRUE)
+      Green_occupation_Moss_1_Picture_1_summary= merge(Green_occupation_Moss_1_Picture_1_summary, Green_occupation_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+    # Blue_occupation
+    {
+      Blue_occupation_Moss_1_Pandora = {Stack_bars_RGB_Pandora%>%
+          filter(Moss == 'Moss_1')%>%
+          dplyr::select(Moss, Time_.second., Glitch_Method, Picture, Blue_occupation, Identity)} # To get all the SLA leaf before M2mergence related to Echinochloa
+      Blue_occupation_Moss_1_raw = {Blue_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'RAW')} # To get only the raw values, used to explain distribution
+      
+      Blue_occupation_Moss_1_mean = {Blue_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'Mean')%>%
+          rename(mean = Blue_occupation)} # To get mean values, used to show an average position of the raw value
+      Blue_occupation_Moss_1_mean$Colour = factor('Blue_occupation') # Important to add the sugar column to map the colour of fill in boxes for each sugar
+      
+      Blue_occupation_Moss_1_SE = {Blue_occupation_Moss_1_Pandora%>%
+          filter(Identity == 'SE')} # To get standard error from the setuped function, used to show how variable are the data
+      
+      Blue_occupation_Moss_1_mean$SE = Blue_occupation_Moss_1_SE$Blue_occupation
+      Blue_occupation_Moss_1_summary = Blue_occupation_Moss_1_mean%>%
+        select(Moss, Time_.second., Glitch_Method, Colour, Picture, mean, SE)
+      
+      
+      
+      Blue_occupation_Moss_1_Picture_1_summary = Blue_occupation_Moss_1_summary%>%
+        filter(Picture == 'Picture_1')
+      
+      Blue_occupation_Moss_1_Picture_1_summary_BG = Blue_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Before_glitching')	 
+      
+      Blue_occupation_Moss_1_Picture_1_summary_M1 = Blue_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_1')
+      
+      Blue_occupation_Moss_1_Picture_1_summary_M2 = Blue_occupation_Moss_1_Picture_1_summary%>%
+        filter(Glitch_Method == 'Method_2')
+      
+      Blue_occupation_Moss_1_Picture_1_summary= merge(Blue_occupation_Moss_1_Picture_1_summary_BG, Blue_occupation_Moss_1_Picture_1_summary_M1, all = TRUE)
+      Blue_occupation_Moss_1_Picture_1_summary= merge(Blue_occupation_Moss_1_Picture_1_summary, Blue_occupation_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+    # Merge datasets to get all sugars
+    {
+      RGB_Moss_1_Picture_1_summary_BG = merge(Red_occupation_Moss_1_Picture_1_summary_BG, Green_occupation_Moss_1_Picture_1_summary_BG, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_BG = merge(RGB_Moss_1_Picture_1_summary_BG, Blue_occupation_Moss_1_Picture_1_summary_BG, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M1 = merge(Red_occupation_Moss_1_Picture_1_summary_M1, Green_occupation_Moss_1_Picture_1_summary_M1, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M1 = merge(RGB_Moss_1_Picture_1_summary_M1, Blue_occupation_Moss_1_Picture_1_summary_M1, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M2 = merge(Red_occupation_Moss_1_Picture_1_summary_M2, Green_occupation_Moss_1_Picture_1_summary_M2, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M2 = merge(RGB_Moss_1_Picture_1_summary_M2, Blue_occupation_Moss_1_Picture_1_summary_M2, all = TRUE)
+    }
+  }
+  # Cummulate means to give the right y coordonate to the error bars
+  {
+    # Blue_occupation = Blue_occupation
+    # Green_occupation = Green_occupation + Blue_occupation
+    # Red_occupation = Red_occupation + Green_occupation + Blue_occupation
+    
+    # Duplicate the datasets just to prevent any issue
+    {
+      Blue_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean = Blue_occupation_Moss_1_Picture_1_summary_BG
+      Green_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean = Green_occupation_Moss_1_Picture_1_summary_BG
+      Red_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean = Red_occupation_Moss_1_Picture_1_summary_BG
+      
+      Blue_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean = Blue_occupation_Moss_1_Picture_1_summary_M1
+      Green_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean = Green_occupation_Moss_1_Picture_1_summary_M1
+      Red_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean = Red_occupation_Moss_1_Picture_1_summary_M1
+      
+      Blue_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean = Blue_occupation_Moss_1_Picture_1_summary_M2
+      Green_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean = Green_occupation_Moss_1_Picture_1_summary_M2
+      Red_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean = Red_occupation_Moss_1_Picture_1_summary_M2
+    }
+    # Cumulate the means as said
+    {
+      Green_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean$mean = Green_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean$mean + Blue_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean$mean
+      Red_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean$mean = Red_occupation_Moss_1_Picture_1_summary_BG$mean + Green_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean$mean
+      
+      Green_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean$mean = Green_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean$mean + Blue_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean$mean
+      Red_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean$mean = Red_occupation_Moss_1_Picture_1_summary_M1$mean + Green_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean$mean
+      
+      Green_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean$mean = Green_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean$mean + Blue_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean$mean
+      Red_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean$mean = Red_occupation_Moss_1_Picture_1_summary_M2$mean + Green_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean$mean
+    }
+    # Merge the datasets
+    {
+      RGB_Moss_1_Picture_1_summary_BG_Cumu_mean = merge(Red_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean, Green_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_BG_Cumu_mean = merge(RGB_Moss_1_Picture_1_summary_BG_Cumu_mean, Blue_occupation_Moss_1_Picture_1_summary_BG_Cumu_mean, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M1_Cumu_mean = merge(Red_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean, Green_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M1_Cumu_mean = merge(RGB_Moss_1_Picture_1_summary_M1_Cumu_mean, Blue_occupation_Moss_1_Picture_1_summary_M1_Cumu_mean, all = TRUE)
+      
+      
+      RGB_Moss_1_Picture_1_summary_M2_Cumu_mean = merge(Red_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean, Green_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean, all = TRUE)
+      RGB_Moss_1_Picture_1_summary_M2_Cumu_mean = merge(RGB_Moss_1_Picture_1_summary_M2_Cumu_mean, Blue_occupation_Moss_1_Picture_1_summary_M2_Cumu_mean, all = TRUE)
+    }
+  }
+  # Plot - Picture_1
+  {
+    RGB_Picture_1_Moss_1_plot = ggplot()+
+      geom_bar(RGB_Moss_1_Picture_1_summary_BG, mapping = aes(x = Time_.second., y = mean, fill = Colour, color = Glitch_Method), size = rel(.8), stat = 'identity', position = 'stack', width = barwidth, alpha = 0.8)+
+      geom_bar(RGB_Moss_1_Picture_1_summary_M1, mapping = aes(x = Time_.second. - (barwidth / 2) - 0.025, y = mean, fill = Colour, color = Glitch_Method), size = rel(.8), stat = 'identity', position = 'stack', width = barwidth, alpha = 0.8)+
+      geom_bar(RGB_Moss_1_Picture_1_summary_M2, mapping = aes(x = Time_.second. + (barwidth / 2) + 0.025, y = mean, fill = Colour, color = Glitch_Method), size = rel(.8), stat = 'identity', position = 'stack', width = barwidth, alpha = 0.8)+
+      geom_errorbar(data = RGB_Moss_1_Picture_1_summary_BG_Cumu_mean, aes(x = Time_.second., ymin = mean - SE, ymax = mean + SE),  colour="black", width=.1, position = 'identity')+
+      geom_errorbar(data = RGB_Moss_1_Picture_1_summary_M1_Cumu_mean, aes(x = Time_.second. - (barwidth / 2) - 0.025, ymin = mean - SE, ymax = mean + SE),  colour="black", width=.1, position = 'identity')+
+      geom_errorbar(data = RGB_Moss_1_Picture_1_summary_M2_Cumu_mean, aes(x = Time_.second. + (barwidth / 2) + 0.025, ymin = mean - SE, ymax = mean + SE),  colour="black", width=.1, position = 'identity')+
+      scale_fill_manual(values = color_fill_RGB, labels = labels_RGB)+
+      scale_color_manual(values = color_outline_conditions, labels = labels_conditions)+
+      scale_x_continuous(name = "seconds", breaks = TP_RGB, expand = expand_x)+
+      scale_y_continuous(expand = expand_y, name = 'RGB', oob = function(x, ...) x)+
+      coord_cartesian(clip = "off")+
+      theme_pubr()+
+      theme_RGB
+    
+    
+    ggsave(filename = "RGB_occupation_Picture_1_Moss_1_plot.tiff",plot = RGB_Picture_1_Moss_1_plot,width = 7,height = 5,dpi = 600)
+  }
+}
