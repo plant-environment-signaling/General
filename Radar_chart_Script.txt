@@ -1,0 +1,47 @@
+# Radar chart of Sub/Cont %
+# use the Radar_chart.csv provided to train with the data
+# Set the shared environment
+{
+  # library, working directory and data frame
+  library(fmsb) # for the radarchart
+  setwd("I:/RStudio/Project_docker/09_Scripts_and_datasets_for_Evp_Github")
+  df <- read.csv('Radar_chart.csv', sep = ";", fileEncoding="UTF-8-BOM") # I use UTF-8-BOM encoding for accents and also to prevent any problem related to the first column
+  
+  # Colors of the inside and border of the THREE polygons
+  # Order matter as it add layer after layer. Here it will be: Green -> Blue -> White
+  # rgb(r,g,b,alpha, maxColorValue = The one you want (usually 255))
+  colors_border=c(rgb(0.0,139,0.0,200, maxColorValue = 255), rgb(16,78,139,200, maxColorValue = 255), rgb(255,255,255,255, maxColorValue = 255))
+  colors_in=c(rgb(0.0,238,0.0,180, maxColorValue = 255), rgb(030,144,255,90, maxColorValue = 255), rgb(255,255,255,255, maxColorValue = 255))
+} 
+
+# Radarchart
+{    
+  # Create upper and lower values
+  {
+    # rep(value,nb_column)
+    df=rbind(rep(200,10) , rep(0,10) , df)
+  }
+  
+  # Record the radarchart
+  {
+    # tiff function to start recording the plot in ".tiff" extention
+    tiff("radarchart_E9.tiff", width = 7, height = 7, units = 'in',res = 600)
+    
+    # Run the radarchart. To understand what are the following arguments, use ?radarchart
+    # In order to go to the next line for the labels, you can used "\n". If you plan to use it, make sure that you are not having any spaces.
+    # BAD Example: "Stuff \n stuff"
+    # GOOD Example : "Stuff\nstuff"
+    radarchart(df, axistype=1, vlcex=0.9,
+               pty=32, plty=1, pcol = colors_border, pfcol = colors_in, centerzero = FALSE,
+               seg = 2,
+               cglcol="grey", cglty=1, axislabcol="black", caxislabels = c("", "", "")  )
+    
+    # End recording by running the dev.off() function.			   
+    dev.off()
+    
+    # Plot should be in your working directory. If you want to save it in another directory, make sure to reload your current directory to graph other files to use.	
+  }
+}
+
+# What's your totem animal?
+# Mine is a Parrot/Bat/Dog
